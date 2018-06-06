@@ -38,3 +38,46 @@ const validateToken = (request, response, next) => {
         return response.status(200).send({ valid: !err });
     })
 }
+
+const signup = (request, response, next) => {
+    const name = request.body.name || '';
+    const email = request.body.email || '';
+    const password = request.body.password || '';
+    const confirmPassword = request.body.confirm_password || '';
+
+    if (!email.match(emailRegex)) {
+        return response.status(400).send({ errors: ['O email informado esta inválido']});
+    }
+
+    if (!password.match(passwordRegex)) {
+        return response.status(400).send({
+            errors: [
+            'Senha precisar ter: uma letra maiúscula, uma letra minúscula, um número, uma caractere especial(@#$ %) e tamanho entre 6-20.'
+            ]
+        })
+    }
+
+    const salt = bcrypt.genSaltSync();
+    const passwordHash = bcrypt.hashSync(password, salt);
+    if (!bcrypt.compareSync(confirmPassword, passwordHash)) {
+        return response.status(400).send({ errors: ['Senhas não conferem.']});
+    }
+
+    user.findOne({ email }, (err, user) => {
+        if (err) {
+            return sendErrosFromDB(response, err);
+        } else if (user) {
+            return response.status(400).send({ errors: ['Usuário já cadastrado.'] })
+        } 
+
+        const newUser = new User({ name, email, password: passwordHash })
+        newUser.save(err => {
+            if (err) {
+                return sendErrosFromDB(response, err);
+            } 
+            login(request, response, next);
+        })
+    });
+}
+
+module.exports = { login, signup, validateToken };
